@@ -28,8 +28,8 @@ namespace thZero.Data.Repository.MongoDb
     {
         #region Public Properties
         public FilterDefinition<TEntity> FilterEx { get; set; }
-        public FilterDefinitionBuilder<TEntity> FilterBuilder { get { return (FilterDefinitionBuilder<TEntity>)Filter; } }
-        public SortDefinitionBuilder<TEntity> SortBuilder { get { return (SortDefinitionBuilder<TEntity>)Sort; } }
+        public FilterDefinitionBuilder<TEntity> FilterBuilder => (FilterDefinitionBuilder<TEntity>)Filter;
+        public SortDefinitionBuilder<TEntity> SortBuilder => (SortDefinitionBuilder<TEntity>)Sort;
         public SortDefinition<TEntity> SortEx { get; set; }
         #endregion
     }

@@ -32,7 +32,7 @@ namespace thZero.Data.Repository.MongoDb
 		#region Public Properties
 		public string ConnectionString { get; set; }
 		public string Database { get; set; }
-		public string Key { get { return (ConnectionString + Database).ToLower(); } }
+		public string Key => (ConnectionString + Database).ToLower();
 		#endregion
 	}
 }
