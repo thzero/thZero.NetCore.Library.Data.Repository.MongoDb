@@ -12,11 +12,10 @@
     <GenerateAssemblyCopyrightAttribute>false</GenerateAssemblyCopyrightAttribute>
     <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
     <PackageRequireLicenseAcceptance>True</PackageRequireLicenseAcceptance>
-    <PackageLicenseUrl>http://www.apache.org/licenses/LICENSE-2.0.txt</PackageLicenseUrl>
-    <RepositoryUrl>https://github.com/thzero/thZero.NetCore.Library.Data.Repository</RepositoryUrl>
-    <RepositoryType>GitHub</RepositoryType>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/thzero/thZero.NetCore.Library.Data.Repository</PackageProjectUrl>
-    <Authors>thZero.com</Authors>
+    <RepositoryType>GitHub</RepositoryType>
+    <RepositoryUrl>https://github.com/thzero/thZero.NetCore.Library.Data.Repository</RepositoryUrl>
   </PropertyGroup>
 
   <ItemGroup>
@@ -25,7 +24,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Logging" Version="2.1.1" />
-    <PackageReference Include="MongoDB.Driver" Version="2.5.0" />
+    <PackageReference Include="MongoDB.Driver" Version="2.7.2" />
   </ItemGroup>
 
   <ItemGroup>
