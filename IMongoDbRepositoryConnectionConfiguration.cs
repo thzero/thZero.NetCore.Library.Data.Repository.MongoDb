@@ -1,5 +1,5 @@
 ﻿/* ------------------------------------------------------------------------- *
-thZero.NetCore.Library
+thZero.NetCore.Library.Data.Repository.MongoDb
 Copyright (C) 2016-2018 thZero.com
 
 <development [at] thzero [dot] com>
