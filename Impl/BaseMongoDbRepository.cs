@@ -26,7 +26,7 @@ using MongoDB.Driver;
 
 namespace thZero.Data.Repository.MongoDb
 {
-	public abstract class BaseMongoDbRepository : BaseRepository
+	public abstract class BaseMongoDbRepository : RepositoryBase
 	{
 		private static readonly thZero.Services.IServiceLog log = thZero.Factory.Instance.RetrieveLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
 
