@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
+	  <TargetFramework>net5.0</TargetFramework>
     <AssemblyName>thZero.NetCore.Library.Data.Repository.Mongo</AssemblyName>
     <PackageId>thZero.NetCore.Library.Data.Repository.Mongo</PackageId>
     <Description></Description>
@@ -23,8 +23,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.Logging" Version="2.2.0" />
-    <PackageReference Include="MongoDB.Driver" Version="2.9.1" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="5.0.0" />
+    <PackageReference Include="MongoDB.Driver" Version="2.12.3" />
   </ItemGroup>
 
   <ItemGroup>
