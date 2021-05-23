@@ -297,9 +297,9 @@ namespace thZero.Data.Repository.MongoDb
 		#endregion
 
 		#region Fields
-		private IDictionary<string, IMongoClient> _clients = new Dictionary<string, IMongoClient>();
-		private static readonly object LockConnection = new object();
-		private static readonly object LockDatabase = new object();
+		private readonly IDictionary<string, IMongoClient> _clients = new Dictionary<string, IMongoClient>();
+		private static readonly object LockConnection = new();
+		private static readonly object LockDatabase = new();
 		#endregion
 
 		#region Constants
