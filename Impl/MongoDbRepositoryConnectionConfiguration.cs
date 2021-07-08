@@ -1,6 +1,6 @@
 ﻿/* ------------------------------------------------------------------------- *
 thZero.NetCore.Library.Data.Repository.MongoDb
-Copyright (C) 2016-2019 thZero.com
+Copyright (C) 2016-2021 thZero.com
 
 <development [at] thzero [dot] com>
 
@@ -18,21 +18,27 @@ limitations under the License.
  * ------------------------------------------------------------------------- */
 
 using System;
+using System.Collections.Generic;
 
 namespace thZero.Data.Repository.MongoDb
 {
-	public sealed class MongoDbRepositoryConnectionConfiguration : IMongoDbRepositoryConnectionConfiguration
+	public sealed class MongoDbRepositoryConnectionConfiguration
 	{
-		public MongoDbRepositoryConnectionConfiguration(string connectionString, string database)
-		{
-			ConnectionString = connectionString;
-			Database = database;
-		}
+		public MongoDbRepositoryConnectionConfiguration()
+        {
+        }
 
+		#region Public Properties
+		public ICollection<MongoDbRepositoryClient> Clients { get; set; } = new List<MongoDbRepositoryClient>();
+		#endregion
+	}
+
+	public sealed class MongoDbRepositoryClient
+	{
 		#region Public Properties
 		public string ConnectionString { get; set; }
 		public string Database { get; set; }
-		public string Key => (ConnectionString + Database).ToLower();
+		public string Key { get; set; }
 		#endregion
 	}
 }

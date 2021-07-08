@@ -18,14 +18,28 @@ limitations under the License.
  * ------------------------------------------------------------------------- */
 
 using System;
+using System.ComponentModel.DataAnnotations.Schema;
+using System.Linq;
 
-namespace thZero.Data.Repository.MongoDb
+using thZero.Data.Repository.MongoDb;
+
+namespace MongoDB.Bson.Serialization.Conventions
 {
-    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Property | AttributeTargets.Field, AllowMultiple = false)]
-    public sealed class IgnoreMappingAttribute : Attribute
+    public class LowerCaseElementNameConvention : IMemberMapConvention
     {
-        public IgnoreMappingAttribute()
+        #region Public Methods
+        public void Apply(BsonMemberMap memberMap)
         {
+            //memberMap.SetElementName(memberMap.MemberName.ToLower());
+            memberMap.SetElementName(Char.ToLowerInvariant(memberMap.MemberName[0]) + memberMap.MemberName.Substring(1));
         }
+        #endregion
+
+        #region Public Properties
+        public string Name
+        {
+            get { return "LowerCaseElementNameConvention"; }
+        }
+        #endregion
     }
 }

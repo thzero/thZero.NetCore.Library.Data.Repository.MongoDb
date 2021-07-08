@@ -1,6 +1,6 @@
 ﻿/* ------------------------------------------------------------------------- *
 thZero.NetCore.Library.Data.Repository.MongoDb
-Copyright (C) 2016-2019 thZero.com
+Copyright (C) 2021-2021 thZero.com
 
 <development [at] thzero [dot] com>
 
@@ -19,12 +19,21 @@ limitations under the License.
 
 using System;
 
-namespace thZero.Data.Repository.MongoDb
+using Microsoft.Extensions.Configuration;
+
+namespace thZero.Data.Repository.Utilities
 {
-	public interface IMongoDbRepositoryConnectionConfiguration : IRepositoryConnectionConfiguration
-	{
-		string ConnectionString { get; set; }
-		string Database { get; set; }
-		string Key { get; }
-	}
+    public sealed class MongoDb
+    {
+        public static IConfigurationSection Config(IConfiguration configuration)
+        {
+            Enforce.AgainstNull(() => configuration);
+
+            IConfigurationSection config = configuration.GetSection("Repositories")?.GetSection("MongoDb");
+            if (config != null)
+                return config;
+
+            throw new Exception("Invalid Repository.Mongo config.");
+        }
+    }
 }

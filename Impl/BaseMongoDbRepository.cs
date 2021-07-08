@@ -1,6 +1,6 @@
 ﻿/* ------------------------------------------------------------------------- *
 thZero.NetCore.Library.Data.Repository.MongoDb
-Copyright (C) 2016-2019 thZero.com
+Copyright (C) 2016-2021 thZero.com
 
 <development [at] thzero [dot] com>
 
@@ -19,292 +19,191 @@ limitations under the License.
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
+
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 using MongoDB.Bson;
 using MongoDB.Driver;
 
 namespace thZero.Data.Repository.MongoDb
 {
-	public abstract class BaseMongoDbRepository : RepositoryBase
+	public abstract class BaseMongoDbRepository<TService> : RepositoryLoggableBase<MongoDbRepositoryConnectionConfiguration, TService>
 	{
-		private static readonly thZero.Services.IServiceLog log = thZero.Factory.Instance.RetrieveLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
-
-		#region Public Methods
-		public override void Initialize(IRepositoryConnectionConfiguration connectionConfiguration)
-        {
-            const string Declaration = "Initialize";
-
-            Enforce.AgainstNull(() => connectionConfiguration);
-
-            try
-            {
-				Connection = (MongoDbRepositoryConnectionConfiguration)connectionConfiguration;
-                if (Connection == null)
-                    throw new MongoDbContextInvalidConnectionConfigurationException();
-
-				InitializeConnection(Connection);
-
-                //StringBuilder connectionString = new StringBuilder();
-                //if (string.IsNullOrEmpty(connectionM.ConnectionString))
-                //{
-                //    bool hasUserPassword = false;
-                //    bool requiresScheme = false;
-
-                //    // format: mongodb://<dbuser>:<dbpassword>@<address>:<port>/<database>
-                //    if (!string.IsNullOrEmpty(connectionM.User) && !string.IsNullOrEmpty(connectionM.Password))
-                //    {
-                //        requiresScheme = true;
-                //        hasUserPassword = true;
-                //        connectionString.Append(connectionM.User).Append(":").Append(connectionM.Password);
-                //    }
-
-                //    if (!string.IsNullOrEmpty(connectionM.Address))
-                //    {
-                //        requiresScheme = true;
-                //        if (hasUserPassword)
-                //            connectionString.Append("@");
-
-                //        connectionString.Append(connectionM.Address);
-                //        if (!string.IsNullOrEmpty(connectionM.Port))
-                //            connectionString.Append(":").Append(connectionM.Port);
-                //    }
-
-                //    if (!string.IsNullOrEmpty(connectionM.Database))
-                //    {
-                //        if ((connectionString.Length > 0) && (connectionString[connectionString.Length - 1] != '/'))
-                //            connectionString.Append("/");
-
-                //        connectionString.Append(connectionM.Database);
-                //    }
-
-                //    if (connectionString.Length == 0)
-                //        throw new MongoDbContextInvalidConnectionStringException();
-
-                //    if (requiresScheme)
-                //        connectionString.Append(scheme, 0, scheme.Length);
-                //}
-                //else
-                //    connectionString.Append(connectionM.ConnectionString);
-
-                //if (connectionString.Length == 0)
-                //    throw new MongoDbContextInvalidConnectionStringException();
-
-                if (string.IsNullOrEmpty(Connection.ConnectionString))
-                    throw new MongoDbContextInvalidConnectionStringException();
-
-                if (string.IsNullOrEmpty(Connection.Database))
-                    throw new MongoDbContextInvalidDatabaseException();
-
-				/*
-
-				if (!_clients.ContainsKey(connectionM.Key))
-				{
-					lock (Lock)
-					{
-						if (!_clients.ContainsKey(connectionM.Key))
-						{
-							Client = new MongoClient(connectionM.ConnectionString);
-							Client = InitializeClient(Client, connectionM);
-							_clients.Add(connectionM.Key, Client);
-						}
-						else
-							Client = _clients[connectionM.Key];
-					}
-				}
-				else
-					Client = _clients[connectionM.Key];
-
-				Database = Client.GetDatabase(connectionM.Database);
-				*/
-			}
-			catch (Exception ex)
-            {
-                log.Error(Declaration, ex);
-                throw;
-            }
-        }
-		#endregion
+		public BaseMongoDbRepository(IOptions<MongoDbRepositoryConnectionConfiguration> config, ILogger<TService> logger) : base(config, logger)
+		{
+			InitializeConventions();
+			InitializeDataMappings();
+		}
 
 		#region Protected Methods
-		protected void CheckInitialize()
+		protected async Task<bool> DropCollectionAsync(string key, string collectionName)
 		{
-			const string Declaration = "CheckInitialize";
+			Enforce.AgainstNullOrEmpty(() => key);
+			Enforce.AgainstNullOrEmpty(() => collectionName);
+
+			IMongoDatabase database = GetDatabase(key);
+			Enforce.AgainstNull(() => database);
+			await database.DropCollectionAsync(collectionName);
+			return true;
+		}
+
+		protected async Task<bool> DropCollectionAsync<T>(string key)
+		{
+			Enforce.AgainstNullOrEmpty(() => key);
+
+			IMongoDatabase database = GetDatabase(key);
+			Enforce.AgainstNull(() => database);
+			await database.DropCollectionAsync(typeof(T).Name.ToLower());
+			return true;
+		}
+
+        protected bool DropCollection(string key, string collectionName)
+		{
+			Enforce.AgainstNullOrEmpty(() => key);
+			Enforce.AgainstNullOrEmpty(() => collectionName);
+
+			IMongoDatabase database = GetDatabase(key);
+			Enforce.AgainstNull(() => database);
+			database.DropCollection(collectionName);
+            return true;
+        }
+
+        protected bool DropCollection<T>(string key)
+		{
+			Enforce.AgainstNullOrEmpty(() => key);
+
+			IMongoDatabase database = GetDatabase(key);
+			Enforce.AgainstNull(() => database);
+			database.DropCollection(typeof(T).Name.ToLower());
+            return true;
+        }
+
+        protected IMongoCollection<BsonDocument> GetCollection(string key, string collectionName)
+		{
+			Enforce.AgainstNullOrEmpty(() => key);
+			Enforce.AgainstNullOrEmpty(() => collectionName);
+
+			return GetCollection<BsonDocument>(key, collectionName);
+        }
+
+        protected IMongoCollection<T> GetCollection<T>(string key)
+		{
+			Enforce.AgainstNullOrEmpty(() => key);
+
+			CollectionNameAttribute attribute = thZero.Utilities.Attributes.GetCustomAttribute<CollectionNameAttribute>(typeof(T), true);
+            if ((attribute == null) || !string.IsNullOrEmpty(attribute.Name))
+				return GetCollection<T>(typeof(T).Name.ToLower());
+
+            return GetCollection<T>(key, attribute.Name.ToLower());
+        }
+
+        protected virtual IMongoCollection<T> GetCollection<T>(string key, string collectionName)
+		{
+			Enforce.AgainstNullOrEmpty(() => key);
+			Enforce.AgainstNullOrEmpty(() => collectionName);
+
+			IMongoDatabase database = GetDatabase(key);
+			Enforce.AgainstNull(() => database);
+			return database.GetCollection<T>(collectionName);
+		}
+
+		protected IMongoDatabase GetDatabase(string key)
+		{
+			const string Declaration = "GetDatabase";
 
 			try
 			{
-				InitializeConnection(Connection);
+				MongoDbRepositoryConnectionConfiguration config = InitializeConnection(Config);
 
-				//StringBuilder connectionString = new StringBuilder();
-				//if (string.IsNullOrEmpty(connectionM.ConnectionString))
-				//{
-				//    bool hasUserPassword = false;
-				//    bool requiresScheme = false;
+				MongoDbRepositoryClient configClient = config.Clients.Where(l => l.Key.EqualsIgnore(key)).FirstOrDefault();
+				if (configClient == null)
+					throw new MongoDbContextInvalidClientConfigurationException();
 
-				//    // format: mongodb://<dbuser>:<dbpassword>@<address>:<port>/<database>
-				//    if (!string.IsNullOrEmpty(connectionM.User) && !string.IsNullOrEmpty(connectionM.Password))
-				//    {
-				//        requiresScheme = true;
-				//        hasUserPassword = true;
-				//        connectionString.Append(connectionM.User).Append(":").Append(connectionM.Password);
-				//    }
+				if (string.IsNullOrEmpty(configClient.ConnectionString))
+					throw new MongoDbContextInvalidConnectionStringException();
 
-				//    if (!string.IsNullOrEmpty(connectionM.Address))
-				//    {
-				//        requiresScheme = true;
-				//        if (hasUserPassword)
-				//            connectionString.Append("@");
+				if (string.IsNullOrEmpty(configClient.Database))
+					throw new MongoDbContextInvalidDatabaseException();
 
-				//        connectionString.Append(connectionM.Address);
-				//        if (!string.IsNullOrEmpty(connectionM.Port))
-				//            connectionString.Append(":").Append(connectionM.Port);
-				//    }
-
-				//    if (!string.IsNullOrEmpty(connectionM.Database))
-				//    {
-				//        if ((connectionString.Length > 0) && (connectionString[connectionString.Length - 1] != '/'))
-				//            connectionString.Append("/");
-
-				//        connectionString.Append(connectionM.Database);
-				//    }
-
-				//    if (connectionString.Length == 0)
-				//        throw new MongoDbContextInvalidConnectionStringException();
-
-				//    if (requiresScheme)
-				//        connectionString.Append(scheme, 0, scheme.Length);
-				//}
-				//else
-				//    connectionString.Append(connectionM.ConnectionString);
-
-				//if (connectionString.Length == 0)
-				//    throw new MongoDbContextInvalidConnectionStringException();
-
-				if (Client == null)
+				IMongoClient client = null;
+				if (!_clients.ContainsKey(key))
 				{
-					if (!_clients.ContainsKey(Connection.Key))
+					lock (LockConnection)
 					{
-						lock (LockConnection)
+						if (!_clients.ContainsKey(key))
 						{
-							if (Client == null)
-							{
-								if (!_clients.ContainsKey(Connection.Key))
-								{
-									Client = new MongoClient(Connection.ConnectionString);
-									Client = InitializeClient(Client, Connection);
-									_clients.Add(Connection.Key, Client);
-								}
-								else
-									Client = _clients[Connection.Key];
-							}
+							client = new MongoClient(configClient.ConnectionString);
+							client = InitializeClient(client, configClient);
+							_clients.Add(key, client);
 						}
+						else
+							client = _clients[key];
 					}
-					else
-						Client = _clients[Connection.Key];
 				}
+				else
+					client = _clients[key];
 
-				if (Database == null)
-				{
-					lock (LockDatabase)
-					{
-						if (Database == null)
-							Database = Client.GetDatabase(Connection.Database);
-					}
-				}
+				return client.GetDatabase(configClient.Database);
 			}
 			catch (Exception ex)
 			{
-				log.Error(Declaration, ex);
+				Logger?.LogError2(Declaration, ex);
 				throw;
 			}
 		}
 
-		protected async Task<bool> DropCollectionAsync(string collectionName)
-		{
-			Enforce.AgainstNullOrEmpty(() => collectionName);
-
-			CheckInitialize();
-
-			await Database.DropCollectionAsync(collectionName);
-			return true;
+		protected virtual MongoDbRepositoryConnectionConfiguration InitializeConnection(MongoDbRepositoryConnectionConfiguration config)
+        {
+			return config;
 		}
 
-		protected async Task<bool> DropCollectionAsync<T>()
+		protected virtual void InitializeConventions()
 		{
-			CheckInitialize();
-
-			await Database.DropCollectionAsync(typeof(T).Name.ToLower());
-			return true;
+			MongoDB.Bson.Serialization.Conventions.ConventionPack pack = new();
+			InitializeConventions(pack);
+			MongoDB.Bson.Serialization.Conventions.ConventionRegistry.Register("additional", pack, t => true);
 		}
 
-        protected bool DropCollection(string collectionName)
-        {
-            Enforce.AgainstNullOrEmpty(() => collectionName);
-
-			CheckInitialize();
-
-			Database.DropCollection(collectionName);
-            return true;
-        }
-
-        protected bool DropCollection<T>()
+		/// <summary>
+		/// If you need to avoid the _id to Id mapping by convention, then the following with needs to be registered with the class that contains
+		/// the Id property.  Unfortunately it must also contain the _id property.
+		/// <code>
+		///BsonClassMap.RegisterClassMap<DataClass>(cm => 
+		///{
+		///    cm.AutoMap();
+		///    cm.SetIdMember(cm.GetMemberMap(c => c._id));
+		///    cm.IdMemberMap.SetSerializer(new StringSerializer(BsonType.ObjectId));
+		///    cm.GetMemberMap(c => c.Id).SetElementName("id");
+		///    //cm.GetMemberMap(c => c.CreatedTimestamp).SetElementName("createdTimestamp");
+		///    //cm.GetMemberMap(c => c.UpdatedTimestamp).SetElementName("updatedTimestamp");
+		///});
+		/// </code>
+		/// </summary>
+		protected virtual void InitializeDataMappings()
 		{
-			CheckInitialize();
-
-			Database.DropCollection(typeof(T).Name.ToLower());
-            return true;
-        }
-
-        protected IMongoCollection<BsonDocument> GetCollection(string collectionName)
-        {
-            return GetCollection<BsonDocument>(collectionName);
-        }
-
-        protected IMongoCollection<T> GetCollection<T>()
-		{
-			CheckInitialize();
-
-			CollectionNameAttribute attribute = Utilities.Attributes.GetCustomAttribute<CollectionNameAttribute>(typeof(T), true);
-            if ((attribute == null) || !string.IsNullOrEmpty(attribute.Name))
-				return GetCollection<T>(typeof(T).Name.ToLower());
-
-            return GetCollection<T>(attribute.Name.ToLower());
-        }
-
-        protected virtual IMongoCollection<T> GetCollection<T>(string collectionName)
-        {
-            Enforce.AgainstNullOrEmpty(() => collectionName);
-
-			CheckInitialize();
-
-			return Database.GetCollection<T>(collectionName);
 		}
 
-		protected virtual void InitializeConnection(IMongoDbRepositoryConnectionConfiguration connection)
-        {
-        }
+		protected virtual void InitializeConventions(MongoDB.Bson.Serialization.Conventions.ConventionPack pack)
+		{
+			pack.Add(new MongoDB.Bson.Serialization.Conventions.DataAnnotationAttributeConvention());
+			pack.Add(new MongoDB.Bson.Serialization.Conventions.IgnoreExtraElementsConvention(true));
+			pack.Add(new MongoDB.Bson.Serialization.Conventions.IgnoreIfNullConvention(true));
+			pack.Add(new MongoDB.Bson.Serialization.Conventions.LowerCaseElementNameConvention());
+		}
 
-        protected virtual IMongoClient InitializeClient(IMongoClient client, IMongoDbRepositoryConnectionConfiguration connectio)
+		protected virtual IMongoClient InitializeClient(IMongoClient client, MongoDbRepositoryClient configClient)
         {
 			return client;
-        }
-        #endregion
-
-        #region Proetcted Properties
-        public IMongoClient Client { get; private set; }
-		private IMongoDbRepositoryConnectionConfiguration Connection { get; set; }
-		public IMongoDatabase Database { get; private set; }
+		}
 		#endregion
 
 		#region Fields
 		private readonly IDictionary<string, IMongoClient> _clients = new Dictionary<string, IMongoClient>();
 		private static readonly object LockConnection = new();
-		private static readonly object LockDatabase = new();
 		#endregion
-
-		#region Constants
-		private const string scheme = "mongodb://";
-        #endregion
     }
 
     [Serializable]
@@ -316,9 +215,20 @@ namespace thZero.Data.Repository.MongoDb
 #pragma warning disable CS0628 // New protected member declared in sealed class
         protected MongoDbContextInvalidConnectionConfigurationException(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context) : base(info, context) { }
 #pragma warning restore CS0628 // New protected member declared in sealed class
-    }
+	}
 
-    [Serializable]
+	[Serializable]
+	public sealed class MongoDbContextInvalidClientConfigurationException : Exception
+	{
+		public MongoDbContextInvalidClientConfigurationException() : base() { }
+		public MongoDbContextInvalidClientConfigurationException(string message) : base(message) { }
+		public MongoDbContextInvalidClientConfigurationException(string message, Exception inner) : base(message, inner) { }
+#pragma warning disable CS0628 // New protected member declared in sealed class
+		protected MongoDbContextInvalidClientConfigurationException(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context) : base(info, context) { }
+#pragma warning restore CS0628 // New protected member declared in sealed class
+	}
+
+	[Serializable]
     public sealed class MongoDbContextInvalidConnectionStringException : Exception
     {
         public MongoDbContextInvalidConnectionStringException() : base() { }
