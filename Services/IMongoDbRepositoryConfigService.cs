@@ -19,18 +19,10 @@ limitations under the License.
 
 using System;
 
-namespace thZero.Data.Repository.MongoDb
+namespace thZero.Data.Repository.Services.MongoDb
 {
-	[AttributeUsage(AttributeTargets.Class, AllowMultiple = false)]
-	public class CollectionNameAttribute : Attribute
-	{
-		public CollectionNameAttribute(string name)
-		{
-			Name = name;
-		}
-
-		#region Public Properties
-		public string Name { get; set; }
-		#endregion
-	}
+    public interface IMongoDbRepositoryConfigService
+    {
+        void Initialize();
+    }
 }

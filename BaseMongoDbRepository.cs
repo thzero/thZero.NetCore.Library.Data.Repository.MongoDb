@@ -34,8 +34,6 @@ namespace thZero.Data.Repository.MongoDb
 	{
 		public BaseMongoDbRepository(IOptions<MongoDbRepositoryConnectionConfiguration> config, ILogger<TService> logger) : base(config, logger)
 		{
-			InitializeConventions();
-			InitializeDataMappings();
 		}
 
 		#region Protected Methods
@@ -44,9 +42,11 @@ namespace thZero.Data.Repository.MongoDb
 			Enforce.AgainstNullOrEmpty(() => key);
 			Enforce.AgainstNullOrEmpty(() => collectionName);
 
-			IMongoDatabase database = GetDatabase(key);
-			Enforce.AgainstNull(() => database);
-			await database.DropCollectionAsync(collectionName);
+
+			(IMongoDatabase database, MongoDbRepositoryClient configClient) response = GetDatabase(key);
+			Enforce.AgainstNull(() => response.database);
+			Enforce.AgainstNull(() => response.configClient);
+			await response.database.DropCollectionAsync(GetCollectionName(response.configClient, collectionName));
 			return true;
 		}
 
@@ -54,9 +54,11 @@ namespace thZero.Data.Repository.MongoDb
 		{
 			Enforce.AgainstNullOrEmpty(() => key);
 
-			IMongoDatabase database = GetDatabase(key);
-			Enforce.AgainstNull(() => database);
-			await database.DropCollectionAsync(typeof(T).Name.ToLower());
+
+			(IMongoDatabase database, MongoDbRepositoryClient configClient) response = GetDatabase(key);
+			Enforce.AgainstNull(() => response.database);
+			Enforce.AgainstNull(() => response.configClient);
+			await response.database.DropCollectionAsync(GetCollectionName(response.configClient, typeof(T).Name.ToLower()));
 			return true;
 		}
 
@@ -65,20 +67,22 @@ namespace thZero.Data.Repository.MongoDb
 			Enforce.AgainstNullOrEmpty(() => key);
 			Enforce.AgainstNullOrEmpty(() => collectionName);
 
-			IMongoDatabase database = GetDatabase(key);
-			Enforce.AgainstNull(() => database);
-			database.DropCollection(collectionName);
-            return true;
+			(IMongoDatabase database, MongoDbRepositoryClient configClient) response = GetDatabase(key);
+			Enforce.AgainstNull(() => response.database);
+			Enforce.AgainstNull(() => response.configClient);
+			response.database.DropCollection(GetCollectionName(response.configClient, collectionName));
+			return true;
         }
 
         protected bool DropCollection<T>(string key)
 		{
 			Enforce.AgainstNullOrEmpty(() => key);
 
-			IMongoDatabase database = GetDatabase(key);
-			Enforce.AgainstNull(() => database);
-			database.DropCollection(typeof(T).Name.ToLower());
-            return true;
+			(IMongoDatabase database, MongoDbRepositoryClient configClient) response = GetDatabase(key);
+			Enforce.AgainstNull(() => response.database);
+			Enforce.AgainstNull(() => response.configClient);
+			response.database.DropCollection(GetCollectionName(response.configClient, typeof(T).Name.ToLower()));
+			return true;
         }
 
         protected IMongoCollection<BsonDocument> GetCollection(string key, string collectionName)
@@ -105,12 +109,14 @@ namespace thZero.Data.Repository.MongoDb
 			Enforce.AgainstNullOrEmpty(() => key);
 			Enforce.AgainstNullOrEmpty(() => collectionName);
 
-			IMongoDatabase database = GetDatabase(key);
-			Enforce.AgainstNull(() => database);
-			return database.GetCollection<T>(collectionName);
+			(IMongoDatabase database, MongoDbRepositoryClient configClient) response = GetDatabase(key);
+			Enforce.AgainstNull(() => response.database);
+			Enforce.AgainstNull(() => response.configClient);
+
+			return response.database.GetCollection<T>(GetCollectionName(response.configClient, collectionName));
 		}
 
-		protected IMongoDatabase GetDatabase(string key)
+		protected (IMongoDatabase database, MongoDbRepositoryClient configClient) GetDatabase(string key)
 		{
 			const string Declaration = "GetDatabase";
 
@@ -146,7 +152,7 @@ namespace thZero.Data.Repository.MongoDb
 				else
 					client = _clients[key];
 
-				return client.GetDatabase(configClient.Database);
+				return (client.GetDatabase(configClient.Database), configClient);
 			}
 			catch (Exception ex)
 			{
@@ -160,48 +166,26 @@ namespace thZero.Data.Repository.MongoDb
 			return config;
 		}
 
-		protected virtual void InitializeConventions()
-		{
-			MongoDB.Bson.Serialization.Conventions.ConventionPack pack = new();
-			InitializeConventions(pack);
-			MongoDB.Bson.Serialization.Conventions.ConventionRegistry.Register("additional", pack, t => true);
-		}
-
-		/// <summary>
-		/// If you need to avoid the _id to Id mapping by convention, then the following with needs to be registered with the class that contains
-		/// the Id property.  Unfortunately it must also contain the _id property.
-		/// <code>
-		///BsonClassMap.RegisterClassMap<DataClass>(cm => 
-		///{
-		///    cm.AutoMap();
-		///    cm.SetIdMember(cm.GetMemberMap(c => c._id));
-		///    cm.IdMemberMap.SetSerializer(new StringSerializer(BsonType.ObjectId));
-		///    cm.GetMemberMap(c => c.Id).SetElementName("id");
-		///    //cm.GetMemberMap(c => c.CreatedTimestamp).SetElementName("createdTimestamp");
-		///    //cm.GetMemberMap(c => c.UpdatedTimestamp).SetElementName("updatedTimestamp");
-		///});
-		/// </code>
-		/// </summary>
-		protected virtual void InitializeDataMappings()
-		{
-		}
-
-		protected virtual void InitializeConventions(MongoDB.Bson.Serialization.Conventions.ConventionPack pack)
-		{
-			pack.Add(new MongoDB.Bson.Serialization.Conventions.DataAnnotationAttributeConvention());
-			pack.Add(new MongoDB.Bson.Serialization.Conventions.IgnoreExtraElementsConvention(true));
-			pack.Add(new MongoDB.Bson.Serialization.Conventions.IgnoreIfNullConvention(true));
-			pack.Add(new MongoDB.Bson.Serialization.Conventions.LowerCaseElementNameConvention());
-		}
-
 		protected virtual IMongoClient InitializeClient(IMongoClient client, MongoDbRepositoryClient configClient)
         {
 			return client;
 		}
 		#endregion
 
+		#region Private Methods
+		private string GetCollectionName(MongoDbRepositoryClient configClient, string key)
+		{
+			Enforce.AgainstNull(() => configClient);
+			Enforce.AgainstNullOrEmpty(() => key);
+
+			MongoDbRepositoryClientCollection collection = configClient.Collections.Where(l => l.Key.EqualsIgnore(key)).FirstOrDefault();
+			return collection != null ? collection.Name : key;
+		}
+		#endregion
+
 		#region Fields
 		private readonly IDictionary<string, IMongoClient> _clients = new Dictionary<string, IMongoClient>();
+
 		private static readonly object LockConnection = new();
 		#endregion
     }

@@ -18,10 +18,6 @@ limitations under the License.
  * ------------------------------------------------------------------------- */
 
 using System;
-using System.ComponentModel.DataAnnotations.Schema;
-using System.Linq;
-
-using thZero.Data.Repository.MongoDb;
 
 namespace MongoDB.Bson.Serialization.Conventions
 {
@@ -30,8 +26,7 @@ namespace MongoDB.Bson.Serialization.Conventions
         #region Public Methods
         public void Apply(BsonMemberMap memberMap)
         {
-            //memberMap.SetElementName(memberMap.MemberName.ToLower());
-            memberMap.SetElementName(Char.ToLowerInvariant(memberMap.MemberName[0]) + memberMap.MemberName.Substring(1));
+            memberMap.SetElementName(Char.ToLowerInvariant(memberMap.MemberName[0]) + memberMap.MemberName[1..]);
         }
         #endregion
 

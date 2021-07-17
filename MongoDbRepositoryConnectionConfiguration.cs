@@ -39,6 +39,15 @@ namespace thZero.Data.Repository.MongoDb
 		public string ConnectionString { get; set; }
 		public string Database { get; set; }
 		public string Key { get; set; }
+		public ICollection<MongoDbRepositoryClientCollection> Collections { get; set; } = new List<MongoDbRepositoryClientCollection>();
+		#endregion
+	}
+
+	public sealed class MongoDbRepositoryClientCollection
+	{
+		#region Public Properties
+		public string Name { get; set; }
+		public string Key { get; set; }
 		#endregion
 	}
 }
