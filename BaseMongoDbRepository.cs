@@ -30,13 +30,17 @@ using MongoDB.Driver;
 
 namespace thZero.Data.Repository.MongoDb
 {
-	public abstract class BaseMongoDbRepository<TService> : RepositoryLoggableBase<MongoDbRepositoryConnectionConfiguration, TService>
+	public abstract class BaseMongoDbRepository<TService, TData, TBaseData> : RepositoryLoggableBase<MongoDbRepositoryConnectionConfiguration, TService>
+		where TData : class
 	{
 		public BaseMongoDbRepository(IOptions<MongoDbRepositoryConnectionConfiguration> config, ILogger<TService> logger) : base(config, logger)
 		{
 		}
 
 		#region Protected Methods
+		protected abstract ProjectionDefinition<TProjectionData> DefaultProjectionBuilder<TProjectionData>()
+			where TProjectionData : TBaseData;
+
 		protected async Task<bool> DropCollectionAsync(string key, string collectionName)
 		{
 			Enforce.AgainstNullOrEmpty(() => key);
@@ -185,6 +189,8 @@ namespace thZero.Data.Repository.MongoDb
 
 		#region Fields
 		private readonly IDictionary<string, IMongoClient> _clients = new Dictionary<string, IMongoClient>();
+
+		protected readonly ReplaceOptions UpsertOptions = new() { IsUpsert = true };
 
 		private static readonly object LockConnection = new();
 		#endregion
