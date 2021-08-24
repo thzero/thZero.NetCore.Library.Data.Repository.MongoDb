@@ -19,7 +19,7 @@ limitations under the License.
 
 using System;
 
-namespace thZero.Data.Repository.Services.MongoDb
+namespace thZero.Data.Services.Repository.MongoDb
 {
     public interface IMongoDbRepositoryConfigService
     {
