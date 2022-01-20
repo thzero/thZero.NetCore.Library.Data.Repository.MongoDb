@@ -46,11 +46,10 @@ namespace thZero.Data.Repository.MongoDb
 			Enforce.AgainstNullOrEmpty(() => key);
 			Enforce.AgainstNullOrEmpty(() => collectionName);
 
-
-			(IMongoDatabase database, MongoDbRepositoryClient configClient) response = GetDatabase(key);
-			Enforce.AgainstNull(() => response.database);
-			Enforce.AgainstNull(() => response.configClient);
-			await response.database.DropCollectionAsync(GetCollectionName(response.configClient, collectionName));
+			MongoDatabaseResponse response = GetDatabase(key);
+			Enforce.AgainstNull(() => response.Database);
+			Enforce.AgainstNull(() => response.ConfigClient);
+			await response.Database.DropCollectionAsync(GetCollectionName(response.ConfigClient, collectionName));
 			return true;
 		}
 
@@ -58,11 +57,10 @@ namespace thZero.Data.Repository.MongoDb
 		{
 			Enforce.AgainstNullOrEmpty(() => key);
 
-
-			(IMongoDatabase database, MongoDbRepositoryClient configClient) response = GetDatabase(key);
-			Enforce.AgainstNull(() => response.database);
-			Enforce.AgainstNull(() => response.configClient);
-			await response.database.DropCollectionAsync(GetCollectionName(response.configClient, typeof(T).Name.ToLower()));
+			MongoDatabaseResponse response = GetDatabase(key);
+			Enforce.AgainstNull(() => response.Database);
+			Enforce.AgainstNull(() => response.ConfigClient);
+			await response.Database.DropCollectionAsync(GetCollectionName(response.ConfigClient, typeof(T).Name.ToLower()));
 			return true;
 		}
 
@@ -71,10 +69,10 @@ namespace thZero.Data.Repository.MongoDb
 			Enforce.AgainstNullOrEmpty(() => key);
 			Enforce.AgainstNullOrEmpty(() => collectionName);
 
-			(IMongoDatabase database, MongoDbRepositoryClient configClient) response = GetDatabase(key);
-			Enforce.AgainstNull(() => response.database);
-			Enforce.AgainstNull(() => response.configClient);
-			response.database.DropCollection(GetCollectionName(response.configClient, collectionName));
+			MongoDatabaseResponse response = GetDatabase(key);
+			Enforce.AgainstNull(() => response.Database);
+			Enforce.AgainstNull(() => response.ConfigClient);
+			response.Database.DropCollection(GetCollectionName(response.ConfigClient, collectionName));
 			return true;
         }
 
@@ -82,22 +80,22 @@ namespace thZero.Data.Repository.MongoDb
 		{
 			Enforce.AgainstNullOrEmpty(() => key);
 
-			(IMongoDatabase database, MongoDbRepositoryClient configClient) response = GetDatabase(key);
-			Enforce.AgainstNull(() => response.database);
-			Enforce.AgainstNull(() => response.configClient);
-			response.database.DropCollection(GetCollectionName(response.configClient, typeof(T).Name.ToLower()));
+			MongoDatabaseResponse response = GetDatabase(key);
+			Enforce.AgainstNull(() => response.Database);
+			Enforce.AgainstNull(() => response.ConfigClient);
+			response.Database.DropCollection(GetCollectionName(response.ConfigClient, typeof(T).Name.ToLower()));
 			return true;
         }
 
-        protected IMongoCollection<BsonDocument> GetCollection(string key, string collectionName)
+        protected MongoCollectionResponse<BsonDocument> GetCollection(string key, string collectionName)
 		{
 			Enforce.AgainstNullOrEmpty(() => key);
 			Enforce.AgainstNullOrEmpty(() => collectionName);
 
 			return GetCollection<BsonDocument>(key, collectionName);
-        }
+		}
 
-        protected IMongoCollection<T> GetCollection<T>(string key)
+        protected MongoCollectionResponse<T> GetCollection<T>(string key)
 		{
 			Enforce.AgainstNullOrEmpty(() => key);
 
@@ -105,22 +103,23 @@ namespace thZero.Data.Repository.MongoDb
             if ((attribute == null) || !string.IsNullOrEmpty(attribute.Name))
 				return GetCollection<T>(typeof(T).Name.ToLower());
 
-            return GetCollection<T>(key, attribute.Name.ToLower());
-        }
+			return GetCollection<T>(key, attribute.Name.ToLower());
+		}
 
-        protected virtual IMongoCollection<T> GetCollection<T>(string key, string collectionName)
+        protected virtual MongoCollectionResponse<T> GetCollection<T>(string key, string collectionName)
 		{
 			Enforce.AgainstNullOrEmpty(() => key);
 			Enforce.AgainstNullOrEmpty(() => collectionName);
 
-			(IMongoDatabase database, MongoDbRepositoryClient configClient) response = GetDatabase(key);
-			Enforce.AgainstNull(() => response.database);
-			Enforce.AgainstNull(() => response.configClient);
+			MongoDatabaseResponse response = GetDatabase(key);
+			Enforce.AgainstNull(() => response.Database);
+			Enforce.AgainstNull(() => response.ConfigClient);
+			Enforce.AgainstNull(() => response.Client);
 
-			return response.database.GetCollection<T>(GetCollectionName(response.configClient, collectionName));
+			return new MongoCollectionResponse<T>(response.Database.GetCollection<T>(GetCollectionName(response.ConfigClient, collectionName)), response);
 		}
 
-		protected (IMongoDatabase database, MongoDbRepositoryClient configClient) GetDatabase(string key)
+		protected MongoDatabaseResponse GetDatabase(string key)
 		{
 			const string Declaration = "GetDatabase";
 
@@ -156,7 +155,7 @@ namespace thZero.Data.Repository.MongoDb
 				else
 					client = _clients[key];
 
-				return (client.GetDatabase(configClient.Database), configClient);
+				return new MongoDatabaseResponse(client.GetDatabase(configClient.Database), configClient, client);
 			}
 			catch (Exception ex)
 			{
@@ -196,7 +195,41 @@ namespace thZero.Data.Repository.MongoDb
 		#endregion
     }
 
-    [Serializable]
+	public struct MongoCollectionResponse<T>
+	{
+		public MongoCollectionResponse(IMongoCollection<T> collection, MongoDatabaseResponse database)
+		{
+			Collection = collection;
+			Client = database.Client;
+			ConfigClient = database.ConfigClient;
+			Database = database.Database;
+		}
+
+		#region Public Properties
+		public IMongoClient Client { get; set; }
+		public IMongoCollection<T> Collection { get; set; }
+		public MongoDbRepositoryClient ConfigClient { get; set; }
+		public IMongoDatabase Database { get; set; }
+		#endregion
+	}
+
+	public struct MongoDatabaseResponse
+	{
+		public MongoDatabaseResponse(IMongoDatabase database, MongoDbRepositoryClient configClient, IMongoClient client)
+        {
+			Database = database;
+			ConfigClient = configClient;
+			Client = client;
+		}
+
+        #region Public Properties
+        public IMongoClient Client { get; set; }
+		public MongoDbRepositoryClient ConfigClient { get; set; }
+		public IMongoDatabase Database { get; set; }
+		#endregion
+	}
+
+	[Serializable]
     public sealed class MongoDbContextInvalidConnectionConfigurationException : Exception
     {
         public MongoDbContextInvalidConnectionConfigurationException() : base() { }
