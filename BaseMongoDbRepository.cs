@@ -176,7 +176,7 @@ namespace thZero.Data.Repository.MongoDb
 		#endregion
 
 		#region Private Methods
-		private string GetCollectionName(MongoDbRepositoryClient configClient, string key)
+		private static string GetCollectionName(MongoDbRepositoryClient configClient, string key)
 		{
 			Enforce.AgainstNull(() => configClient);
 			Enforce.AgainstNullOrEmpty(() => key);
